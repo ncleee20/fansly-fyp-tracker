@@ -351,6 +351,7 @@ let state = {
   sent: {},
   thumbnails: {},
   videoURLs: {},
+  fanslyNums: {},
   _peopleIds: {},
   _videoIds: {}
 };
@@ -361,7 +362,7 @@ async function sbLoadAll() {
     const [{ data: people }, { data: videos }, { data: sent }] = await Promise.all([
       supabase.from('people').select('*').order('id'),
       supabase.from('videos').select('*').order('id'),
-      supabase.from('sent_status').select('*')
+      supabase.from('sent_status').select('*,fansly_num')
     ]);
     if (people) {
       state.people = people.map(p => p.name);
@@ -377,6 +378,7 @@ async function sbLoadAll() {
     }
     if (sent) {
       state.sent = {};
+      state.fanslyNums = {};
       sent.forEach(s => {
         const vName = videos.find(v=>v.id===s.video_id)?.name;
         const pName = people.find(p=>p.id===s.person_id)?.name;
@@ -385,6 +387,7 @@ async function sbLoadAll() {
         if (vi>=0 && pi>=0) {
           if (!state.sent[vi]) state.sent[vi] = {};
           state.sent[vi][pi] = s.is_sent;
+          if (s.fansly_num) state.fanslyNums[`${vi}__${pi}`] = s.fansly_num;
         }
       });
     }
@@ -482,14 +485,30 @@ function toggleSent(vi,pi) {
   refreshAll();
 }
 
-// ── Get model's video list ──
-// Returns array of { vi (research index), modelNum (1-based sequential) }
+// ── Get model's video list with fansly_num support ──
 function getModelVideos(pi) {
   const result = [];
   state.videos.forEach((v,vi) => {
-    if (isSent(vi,pi)) result.push({ vi, researchNum: vi+1 });
+    if (isSent(vi,pi)) {
+      const key = `${vi}__${pi}`;
+      const fanslyNum = state.fanslyNums?.[key] || null;
+      result.push({ vi, researchNum: vi+1, fanslyNum });
+    }
   });
-  return result.map((item, idx) => ({ ...item, modelNum: idx+1 }));
+  // Sort by fanslyNum if available
+  result.sort((a,b) => {
+    if (a.fanslyNum && b.fanslyNum) return a.fanslyNum - b.fanslyNum;
+    if (a.fanslyNum) return -1;
+    if (b.fanslyNum) return 1;
+    return a.vi - b.vi;
+  });
+  // Assign modelNum — use fanslyNum if available, otherwise next sequential after highest fanslyNum
+  const maxFansly = Math.max(...result.filter(r=>r.fanslyNum).map(r=>r.fanslyNum), 0);
+  let nextSeq = maxFansly + 1;
+  return result.map(item => ({
+    ...item,
+    modelNum: item.fanslyNum || nextSeq++
+  }));
 }
 
 // ── Navigation ──
