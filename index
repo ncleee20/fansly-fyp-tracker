@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fansly FYP Tracker</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Jost:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#fafaf8;
+  --surface:#ffffff;
+  --border:#e8e4df;
+  --border2:#d8d2cb;
+  --accent:#2c2c2c;
+  --accent2:#8a7e72;
+  --green:#4a7c59;
+  --green-bg:rgba(74,124,89,0.07);
+  --green-border:#c2d9c9;
+  --red:#a85454;
+  --red-bg:rgba(168,84,84,0.06);
+  --text:#1a1a1a;
+  --muted:#9a9287;
+  --shadow:0 1px 8px rgba(0,0,0,0.06);
+  --shadow-lg:0 8px 32px rgba(0,0,0,0.1);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'Jost',sans-serif;font-weight:400;min-height:100vh;overflow-x:hidden;letter-spacing:0.01em;}
+body::before{content:'';position:fixed;inset:0;background:linear-gradient(160deg,rgba(240,236,230,0.5) 0%,transparent 55%);pointer-events:none;z-index:0;}
+
+/* NAV */
+.nav{position:sticky;top:0;z-index:50;background:rgba(250,250,248,0.97);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);display:flex;align-items:center;overflow-x:auto;}
+.nav-logo{font-family:'Cormorant Garamond',serif;font-weight:500;font-size:17px;padding:16px 28px;border-right:1px solid var(--border);white-space:nowrap;flex-shrink:0;color:var(--text);letter-spacing:0.14em;text-transform:uppercase;cursor:pointer;}
+.nav-logo span{color:var(--accent2);}
+.nav-btn{font-family:'Jost',sans-serif;font-size:11px;font-weight:500;letter-spacing:0.13em;text-transform:uppercase;padding:16px 18px;border:none;background:transparent;color:var(--muted);cursor:pointer;transition:all 0.2s;white-space:nowrap;border-bottom:2px solid transparent;flex-shrink:0;position:relative;}
+.nav-btn:hover{color:var(--text);}
+.nav-btn.active{color:var(--text);border-bottom-color:var(--text);}
+.nav-dot{width:6px;height:6px;border-radius:50%;display:inline-block;margin-right:6px;vertical-align:middle;}
+
+/* PAGES */
+.page{display:none;position:relative;z-index:1;max-width:1440px;margin:0 auto;padding:48px 32px;}
+.page.active{display:block;}
+
+/* PAGE HEADER */
+.page-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:40px;flex-wrap:wrap;gap:16px;padding-bottom:24px;border-bottom:1px solid var(--border);}
+.page-title{font-family:'Cormorant Garamond',serif;font-weight:400;font-size:32px;color:var(--text);letter-spacing:0.04em;}
+.page-sub{font-size:11px;color:var(--muted);margin-top:5px;font-weight:400;letter-spacing:0.12em;text-transform:uppercase;}
+
+/* BUTTONS */
+.btn{font-family:'Jost',sans-serif;font-size:11px;font-weight:500;padding:10px 22px;border-radius:0;border:1px solid var(--border);cursor:pointer;transition:all 0.2s;letter-spacing:0.12em;text-transform:uppercase;}
+.btn-primary{background:var(--text);color:white;border-color:var(--text);}
+.btn-primary:hover{background:#333;}
+.btn-ghost{background:transparent;color:var(--muted);border-color:var(--border);}
+.btn-ghost:hover{color:var(--text);border-color:var(--text);}
+
+/* STATS BAR */
+.stats-bar{display:flex;gap:1px;flex-wrap:wrap;margin-bottom:36px;border:1px solid var(--border);background:var(--border);}
+.stat-card{background:white;padding:22px 26px;flex:1;min-width:110px;}
+.stat-label{font-size:10px;text-transform:uppercase;letter-spacing:0.16em;color:var(--muted);margin-bottom:8px;font-weight:500;}
+.stat-value{font-family:'Cormorant Garamond',serif;font-size:38px;font-weight:400;line-height:1;}
+.c-blue .stat-value{color:var(--text);}
+.c-green .stat-value{color:var(--green);}
+.c-red .stat-value{color:var(--red);}
+.c-sky .stat-value{color:var(--accent2);}
+
+/* CONTROLS */
+.controls{display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap;align-items:center;}
+.search-input{font-family:'Jost',sans-serif;font-size:12px;background:white;border:1px solid var(--border);color:var(--text);padding:10px 16px;outline:none;min-width:220px;transition:border-color 0.2s;letter-spacing:0.04em;}
+.search-input:focus{border-color:var(--text);}
+.search-input::placeholder{color:var(--muted);}
+.filter-pills{display:inline-flex;border:1px solid var(--border);margin-bottom:22px;}
+.pill{font-family:'Jost',sans-serif;font-size:10px;font-weight:500;padding:8px 16px;border:none;border-right:1px solid var(--border);cursor:pointer;transition:all 0.2s;color:var(--muted);background:white;text-transform:uppercase;letter-spacing:0.12em;}
+.pill:last-child{border-right:none;}
+.pill.active{color:white;background:var(--text);}
+.pill:hover:not(.active){color:var(--text);background:#f5f3f0;}
+
+/* MAIN TABLE */
+.table-wrap{background:white;border:1px solid var(--border);overflow:hidden;overflow-x:auto;box-shadow:var(--shadow);}
+table{width:100%;border-collapse:collapse;}
+thead tr{background:#faf8f5;border-bottom:1px solid var(--border);}
+th{font-family:'Jost',sans-serif;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.16em;color:var(--muted);padding:14px 16px;text-align:center;white-space:nowrap;}
+th:first-child{text-align:left;padding-left:22px;min-width:300px;}
+tbody tr{border-bottom:1px solid #f0ece7;transition:background 0.15s;}
+tbody tr:last-child{border-bottom:none;}
+tbody tr:hover{background:#faf8f5;}
+td{padding:13px 16px;text-align:center;vertical-align:middle;}
+td:first-child{text-align:left;padding-left:22px;}
+
+/* THUMBNAIL */
+.thumb-wrap{width:50px;height:50px;overflow:hidden;flex-shrink:0;background:#f5f3f0;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;transition:all 0.2s;}
+.thumb-wrap:hover{border-color:var(--text);}
+.thumb-wrap img{width:100%;height:100%;object-fit:cover;display:block;}
+.thumb-placeholder{font-size:16px;opacity:0.25;}
+.thumb-overlay{position:absolute;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity 0.2s;color:white;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;}
+.thumb-wrap:hover .thumb-overlay{opacity:1;}
+
+.video-name{font-size:13px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px;}
+.video-idx{font-size:10px;color:var(--muted);margin-top:2px;letter-spacing:0.06em;}
+.research-tag{display:inline-flex;align-items:center;font-size:9px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--accent2);background:#f5f0eb;border:1px solid #e0d8d0;padding:2px 8px;margin-top:3px;}
+
+.action-btn{width:22px;height:22px;font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.2s;border:1px solid #ddd;background:transparent;color:var(--muted);}
+.action-btn.del:hover{background:#fce8ed;border-color:var(--red);color:var(--red);}
+.action-btn.ren:hover{background:#f0f4ff;border-color:var(--accent2);color:var(--accent2);}
+
+/* TOGGLE */
+.toggle-wrap{display:flex;flex-direction:column;align-items:center;gap:3px;}
+.toggle{position:relative;width:38px;height:21px;cursor:pointer;}
+.toggle input{display:none;}
+.toggle-track{position:absolute;inset:0;background:#f5f0eb;border:1px solid #ddd;transition:all 0.25s;}
+.toggle-thumb{position:absolute;top:3px;left:3px;width:13px;height:13px;background:#c0b8b0;transition:all 0.25s;}
+.toggle input:checked~.toggle-track{background:#eef5f0;border-color:#b8d8c4;}
+.toggle input:checked~.toggle-thumb{left:20px;background:var(--green);}
+.status-text{font-size:9px;letter-spacing:0.08em;font-weight:600;text-transform:uppercase;}
+.status-sent{color:var(--green);}
+.status-unsent{color:var(--muted);}
+
+.row-badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:3px 10px;font-weight:500;letter-spacing:0.06em;}
+.badge-sent{background:#eef5f0;color:var(--green);border:1px solid #c8e0d0;}
+.badge-pending{background:#f8f2ee;color:var(--muted);border:1px solid #e0d8d0;}
+
+.person-header{display:flex;flex-direction:column;align-items:center;gap:3px;}
+.person-avatar{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:10px;color:white;margin:0 auto;}
+.person-sent-count{font-size:9px;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;}
+
+/* ── MODEL TAB TABLE ── */
+.model-table-wrap{background:white;border:1px solid var(--border);overflow:hidden;overflow-x:auto;box-shadow:var(--shadow);}
+.model-table-wrap table thead tr{background:#faf8f5;border-bottom:1px solid var(--border);}
+.model-table-wrap table th{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.16em;color:var(--muted);padding:13px 20px;text-align:left;}
+.model-table-wrap table td{padding:14px 20px;border-bottom:1px solid #f0ece7;vertical-align:middle;text-align:left;}
+.model-table-wrap table tbody tr:last-child td{border-bottom:none;}
+.model-table-wrap table tbody tr:hover{background:#faf8f5;}
+
+.model-video-num{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:400;color:var(--text);line-height:1;}
+.model-video-label{font-size:10px;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;margin-top:1px;}
+.model-research-ref{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--accent2);background:#f5f0eb;border:1px solid #e0d8d0;padding:3px 10px;cursor:pointer;transition:all 0.2s;}
+.model-research-ref:hover{background:#ede6dd;border-color:var(--accent2);color:var(--text);}
+.model-thumb{width:56px;height:56px;overflow:hidden;flex-shrink:0;background:#f5f3f0;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;}
+.model-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
+.model-thumb-placeholder{font-size:18px;opacity:0.2;}
+
+/* PROGRESS */
+.progress-bar{height:2px;background:var(--border);overflow:hidden;width:100%;}
+.progress-fill{height:100%;background:var(--text);transition:width 0.5s ease;}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(26,26,26,0.28);backdrop-filter:blur(4px);z-index:200;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity 0.2s;}
+.modal-overlay.open{opacity:1;pointer-events:all;}
+.modal{background:white;border:1px solid var(--border);padding:40px;width:90%;max-width:480px;transform:translateY(14px);transition:transform 0.2s;position:relative;max-height:90vh;overflow-y:auto;box-shadow:var(--shadow-lg);}
+.modal-lg{max-width:640px;}
+.modal-overlay.open .modal{transform:translateY(0);}
+.modal h2{font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:400;margin-bottom:6px;color:var(--text);letter-spacing:0.04em;}
+.modal p{font-size:12px;color:var(--muted);margin-bottom:26px;letter-spacing:0.04em;}
+.form-group{margin-bottom:18px;}
+.form-label{display:block;font-size:10px;text-transform:uppercase;letter-spacing:0.14em;color:var(--muted);margin-bottom:8px;font-weight:500;}
+.form-input{font-family:'Jost',sans-serif;font-size:13px;width:100%;background:#fafaf8;border:1px solid var(--border);color:var(--text);padding:11px 15px;outline:none;transition:all 0.2s;letter-spacing:0.02em;}
+.form-input:focus{border-color:var(--text);background:white;}
+.modal-actions{display:flex;gap:10px;margin-top:26px;}
+.modal-actions .btn{flex:1;text-align:center;}
+.close-btn{position:absolute;top:18px;right:18px;background:transparent;border:1px solid var(--border);color:var(--muted);cursor:pointer;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:14px;transition:all 0.2s;}
+.close-btn:hover{color:var(--text);border-color:var(--text);}
+.upload-zone{border:1px dashed var(--border2);padding:28px 20px;text-align:center;cursor:pointer;transition:all 0.2s;position:relative;background:#fafaf8;}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--text);background:#f5f3f0;}
+.upload-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+.upload-zone .uz-icon{font-size:26px;margin-bottom:10px;opacity:0.4;}
+.upload-zone .uz-text{font-size:12px;color:var(--muted);letter-spacing:0.06em;}
+.upload-zone .uz-sub{font-size:10px;color:var(--muted);margin-top:4px;opacity:0.6;letter-spacing:0.06em;}
+.preview-box{margin-top:14px;background:#fafaf8;border:1px solid var(--border);padding:14px;}
+.preview-box .plabel{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.12em;margin-bottom:8px;}
+.preview-box img{width:100%;max-height:140px;object-fit:cover;display:block;}
+.video-preview-player{width:100%;background:#000;display:block;margin-top:12px;max-height:300px;}
+.person-tag{display:inline-flex;align-items:center;gap:6px;background:#fafaf8;border:1px solid var(--border);padding:5px 11px;font-size:12px;margin:3px;color:var(--text);letter-spacing:0.04em;}
+.person-tag button{background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;line-height:1;transition:color 0.2s;}
+.person-tag button:hover{color:var(--red);}
+
+/* LANDING */
+.landing-hero{text-align:center;padding:72px 24px 56px;border-bottom:1px solid var(--border);margin-bottom:56px;}
+.landing-hero-eyebrow{font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);margin-bottom:16px;}
+.landing-hero-title{font-family:'Cormorant Garamond',serif;font-weight:300;font-size:54px;line-height:1.1;color:var(--text);margin-bottom:14px;letter-spacing:0.02em;}
+.landing-hero-title em{font-style:italic;color:var(--accent2);}
+.landing-hero-sub{font-size:13px;color:var(--muted);letter-spacing:0.04em;max-width:400px;margin:0 auto 32px;line-height:1.7;}
+.landing-hero-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
+.landing-section-label{font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);margin-bottom:24px;display:flex;align-items:center;gap:14px;}
+.landing-section-label::before,.landing-section-label::after{content:'';flex:1;height:1px;background:var(--border);}
+.landing-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1px;background:var(--border);border:1px solid var(--border);margin-bottom:56px;}
+.landing-card{background:white;padding:28px 24px;cursor:pointer;transition:all 0.22s;position:relative;overflow:hidden;}
+.landing-card::after{content:'→';position:absolute;bottom:18px;right:22px;font-size:16px;color:var(--border2);transition:all 0.22s;}
+.landing-card:hover{background:#faf8f5;}
+.landing-card:hover::after{color:var(--text);transform:translateX(4px);}
+.lc-avatar{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:15px;color:white;margin-bottom:14px;}
+.lc-name{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:400;color:var(--text);margin-bottom:4px;letter-spacing:0.02em;}
+.lc-meta{font-size:11px;color:var(--muted);letter-spacing:0.06em;margin-bottom:14px;}
+.lc-bar{height:2px;background:var(--border);width:100%;margin-bottom:6px;}
+.lc-bar-fill{height:100%;background:var(--text);transition:width 0.4s ease;}
+.lc-pct{font-size:10px;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;}
+.landing-main-card{background:white;border:1px solid var(--border);padding:32px;display:flex;align-items:center;justify-content:space-between;gap:20px;cursor:pointer;transition:all 0.22s;margin-bottom:56px;}
+.landing-main-card:hover{background:#faf8f5;border-color:var(--text);}
+.landing-main-card-left .eyebrow{font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;}
+.landing-main-card-left .title{font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:400;color:var(--text);margin-bottom:6px;}
+.landing-main-card-left .desc{font-size:12px;color:var(--muted);letter-spacing:0.03em;line-height:1.6;}
+.landing-main-arrow{font-size:28px;color:var(--border2);transition:all 0.22s;flex-shrink:0;}
+.landing-main-card:hover .landing-main-arrow{color:var(--text);transform:translateX(5px);}
+.landing-stats-row{display:flex;gap:1px;background:var(--border);border:1px solid var(--border);margin-bottom:14px;}
+.lsr-item{background:white;flex:1;padding:18px;text-align:center;}
+.lsr-val{font-family:'Cormorant Garamond',serif;font-size:30px;font-weight:400;color:var(--text);}
+.lsr-label{font-size:9px;letter-spacing:0.16em;text-transform:uppercase;color:var(--muted);margin-top:3px;}
+
+/* EMPTY */
+.empty-state{text-align:center;padding:72px 20px;color:var(--muted);}
+.empty-state .icon{font-size:28px;margin-bottom:14px;opacity:0.3;}
+.empty-state p{font-size:13px;letter-spacing:0.06em;}
+
+@keyframes fadeIn{from{opacity:0;transform:translateY(5px);}to{opacity:1;transform:translateY(0);}}
+.animate-in{animation:fadeIn 0.18s ease forwards;}
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:var(--bg);}
+::-webkit-scrollbar-thumb{background:var(--border2);}
+</style>
+</head>
+<body>
+
+<nav class="nav" id="mainNav">
+  <div class="nav-logo" onclick="showPage('landing',document.getElementById('navbtn-landing'))">Fansly<span>FYP</span>.</div>
+  <button class="nav-btn active" id="navbtn-landing" onclick="showPage('landing',this)">Home</button>
+  <button class="nav-btn" id="navbtn-main" onclick="showPage('main',this)">Main Dashboard</button>
+  <div id="navPersonBtns"></div>
+</nav>
+
+<!-- LANDING -->
+<div class="page active" id="page-landing">
+  <div id="landingContent"></div>
+</div>
+
+<!-- MAIN DASHBOARD -->
+<div class="page" id="page-main">
+  <div class="page-header">
+    <div>
+      <div class="page-title">Main Dashboard</div>
+      <div class="page-sub">All researched videos · toggle to send to models</div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <button class="btn btn-ghost" onclick="openManagePeople()">⚙ Models</button>
+      <button class="btn btn-primary" onclick="openAddVideo()">+ Add Video</button>
+    </div>
+  </div>
+  <div class="stats-bar" id="mainStats"></div>
+  <div class="controls">
+    <input class="search-input" id="mainSearch" placeholder="🔍  Search videos..." oninput="renderMainTable()">
+  </div>
+  <div class="filter-pills">
+    <button class="pill active" onclick="setMainFilter('all',this)">All</button>
+    <button class="pill" onclick="setMainFilter('partial',this)">Partial</button>
+    <button class="pill" onclick="setMainFilter('none',this)">Not Sent</button>
+    <button class="pill" onclick="setMainFilter('complete',this)">Fully Sent</button>
+  </div>
+  <div class="table-wrap"><table><thead id="mainHead"></thead><tbody id="mainBody"></tbody></table></div>
+</div>
+
+<!-- PERSON PAGES -->
+<div id="personPages"></div>
+
+<!-- Add Video Modal -->
+<div class="modal-overlay" id="addModal">
+  <div class="modal">
+    <button class="close-btn" onclick="closeModal('addModal');resetAddForm()">×</button>
+    <h2>Add Research Video</h2>
+    <p>Add a new researched video to the master list.</p>
+    <div class="form-group">
+      <label class="form-label">Video Name</label>
+      <input class="form-input" id="videoNameInput" placeholder="e.g. Fansly 101" onkeydown="if(event.key==='Enter')saveVideo()">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Upload Video <span style="color:var(--muted);font-size:9px;text-transform:none;">(optional — generates thumbnail)</span></label>
+      <div class="upload-zone" id="addUploadZone" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="handleAddDrop(event)">
+        <input type="file" accept="video/*" id="addVideoFile" onchange="handleAddFileSelect(this)">
+        <div class="uz-icon">🎬</div>
+        <div class="uz-text">Click or drag a video here</div>
+        <div class="uz-sub">MP4, MOV, WebM · thumbnail auto-generated</div>
+      </div>
+      <div id="addPreview" style="display:none;">
+        <div class="preview-box"><div class="plabel">Thumbnail Preview</div>
+        <img id="addThumbPreview" alt="thumb"></div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('addModal');resetAddForm()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveVideo()">Add Video</button>
+    </div>
+  </div>
+</div>
+
+<!-- Rename Modal -->
+<div class="modal-overlay" id="renameModal">
+  <div class="modal">
+    <button class="close-btn" onclick="closeModal('renameModal')">×</button>
+    <h2>Rename Video</h2><p>Enter a new name for this research video.</p>
+    <div class="form-group">
+      <label class="form-label">New Name</label>
+      <input class="form-input" id="renameInput" onkeydown="if(event.key==='Enter')saveRename()">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('renameModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveRename()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Video Preview Modal -->
+<div class="modal-overlay" id="videoModal">
+  <div class="modal modal-lg">
+    <button class="close-btn" onclick="closeVideoModal()">×</button>
+    <h2 id="videoModalTitle">Preview</h2>
+    <p id="videoModalSub">Uploaded reference file</p>
+    <video id="videoModalPlayer" class="video-preview-player" controls></video>
+    <div class="modal-actions" style="margin-top:14px;">
+      <button class="btn btn-ghost" onclick="closeVideoModal()">Close</button>
+      <button class="btn" style="background:#fce8ed;color:var(--red);border-color:#f5b8c4;flex:1;font-weight:600;" onclick="removeVideoFile()">Remove Video</button>
+    </div>
+  </div>
+</div>
+
+<!-- Manage Models Modal -->
+<div class="modal-overlay" id="peopleModal">
+  <div class="modal">
+    <button class="close-btn" onclick="closeModal('peopleModal')">×</button>
+    <h2>Manage Models</h2><p>Add or remove models from your tracker.</p>
+    <div class="form-group">
+      <label class="form-label">Add Model</label>
+      <div style="display:flex;gap:8px;">
+        <input class="form-input" id="personNameInput" placeholder="e.g. Sofia" style="flex:1" onkeydown="if(event.key==='Enter')addPerson()">
+        <button class="btn btn-primary" onclick="addPerson()">Add</button>
+      </div>
+    </div>
+    <div class="form-group"><label class="form-label">Current Models</label><div id="peopleTagsContainer"></div></div>
+    <div class="modal-actions"><button class="btn btn-primary" onclick="closeModal('peopleModal')">Done</button></div>
+  </div>
+</div>
+
+<canvas id="hiddenCanvas" style="display:none;"></canvas>
+
+<script>
+// ── Supabase ──
+var supabase;
+const SUPABASE_URL = 'https://jhafbeipdgfxlwkosctc.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_aPdXiHYsZo8429q8dKnF_Q_Afz_2gk4';
+
+const AC = ['#4fa3e8','#f07ab0','#27ae7a','#f5a623','#e05c7a','#3ab5e8','#9b59b6','#1abc9c'];
+
+let state = {
+  people: ['Lola','Josie','Emma','Akasha','Myla','Grace','Mia'],
+  videos: [],
+  sent: {},
+  thumbnails: {},
+  videoURLs: {},
+  _peopleIds: {},
+  _videoIds: {}
+};
+
+// ── Supabase helpers ──
+async function sbLoadAll() {
+  try {
+    const [{ data: people }, { data: videos }, { data: sent }] = await Promise.all([
+      supabase.from('people').select('*').order('id'),
+      supabase.from('videos').select('*').order('id'),
+      supabase.from('sent_status').select('*')
+    ]);
+    if (people) {
+      state.people = people.map(p => p.name);
+      state._peopleIds = people.reduce((a,p) => { a[p.name]=p.id; return a; }, {});
+    }
+    if (videos) {
+      state.videos = videos.map(v => v.name);
+      state._videoIds = videos.reduce((a,v) => { a[v.name]=v.id; return a; }, {});
+      videos.forEach(v => {
+        const vi = state.videos.indexOf(v.name);
+        if (v.thumbnail) state.thumbnails[vi] = v.thumbnail;
+      });
+    }
+    if (sent) {
+      state.sent = {};
+      sent.forEach(s => {
+        const vName = videos.find(v=>v.id===s.video_id)?.name;
+        const pName = people.find(p=>p.id===s.person_id)?.name;
+        const vi = state.videos.indexOf(vName);
+        const pi = state.people.indexOf(pName);
+        if (vi>=0 && pi>=0) {
+          if (!state.sent[vi]) state.sent[vi] = {};
+          state.sent[vi][pi] = s.is_sent;
+        }
+      });
+    }
+    return true;
+  } catch(e) { console.error('Supabase load error:', e); return false; }
+}
+
+async function sbToggleSent(vi, pi) {
+  try {
+    const videoId = state._videoIds?.[state.videos[vi]];
+    const personId = state._peopleIds?.[state.people[pi]];
+    if (!videoId || !personId) return;
+    await supabase.from('sent_status').upsert({
+      video_id: videoId, person_id: personId, is_sent: isSent(vi, pi)
+    }, { onConflict: 'video_id,person_id' });
+  } catch(e) { console.error('Toggle error:', e); }
+}
+
+async function sbAddVideo(name) {
+  try {
+    const { data } = await supabase.from('videos').insert({ name }).select().single();
+    if (data) {
+      state._videoIds[name] = data.id;
+      const rows = state.people.map(p => ({ video_id: data.id, person_id: state._peopleIds[p], is_sent: false }));
+      if (rows.length) await supabase.from('sent_status').insert(rows);
+    }
+  } catch(e) { console.error('Add video error:', e); }
+}
+
+async function sbDeleteVideo(videoName) {
+  try {
+    const id = state._videoIds?.[videoName];
+    if (id) await supabase.from('videos').delete().eq('id', id);
+  } catch(e) { console.error('Delete error:', e); }
+}
+
+async function sbRenameVideo(oldName, newName) {
+  try {
+    const id = state._videoIds?.[oldName];
+    if (!id) return;
+    await supabase.from('videos').update({ name: newName }).eq('id', id);
+    state._videoIds[newName] = state._videoIds[oldName];
+    delete state._videoIds[oldName];
+  } catch(e) { console.error('Rename error:', e); }
+}
+
+async function sbSaveThumbnail(vi, thumbnail) {
+  try {
+    const id = state._videoIds?.[state.videos[vi]];
+    if (id) await supabase.from('videos').update({ thumbnail }).eq('id', id);
+  } catch(e) { console.error('Thumbnail error:', e); }
+}
+
+async function sbAddPerson(name) {
+  try {
+    const { data } = await supabase.from('people').insert({ name }).select().single();
+    if (data) {
+      state._peopleIds[name] = data.id;
+      const rows = state.videos.map(v => ({ video_id: state._videoIds[v], person_id: data.id, is_sent: false }));
+      if (rows.length) await supabase.from('sent_status').insert(rows);
+    }
+  } catch(e) { console.error('Add person error:', e); }
+}
+
+async function sbRemovePerson(name) {
+  try {
+    const id = state._peopleIds?.[name];
+    if (id) await supabase.from('people').delete().eq('id', id);
+  } catch(e) { console.error('Remove person error:', e); }
+}
+
+// ── Core helpers ──
+function extractNumber(name) { const m = name.match(/\d+/); return m ? parseInt(m[0]) : 999999; }
+
+function sortVideos() {
+  const indexed = state.videos.map((v,i) => ({ name:v, origIdx:i }));
+  indexed.sort((a,b) => { const na=extractNumber(a.name),nb=extractNumber(b.name); return na!==nb?na-nb:a.name.localeCompare(b.name); });
+  const nv=[],ns={},nt={},nu={};
+  indexed.forEach((item,newIdx) => {
+    nv.push(item.name);
+    if (state.sent[item.origIdx]) ns[newIdx] = state.sent[item.origIdx];
+    if (state.thumbnails[item.origIdx]) nt[newIdx] = state.thumbnails[item.origIdx];
+    if (state.videoURLs[item.origIdx]) nu[newIdx] = state.videoURLs[item.origIdx];
+  });
+  state.videos=nv; state.sent=ns; state.thumbnails=nt; state.videoURLs=nu;
+}
+
+function isSent(vi,pi) { return !!(state.sent[vi]&&state.sent[vi][pi]); }
+
+function toggleSent(vi,pi) {
+  if (!state.sent[vi]) state.sent[vi]={};
+  state.sent[vi][pi] = !state.sent[vi][pi];
+  sbToggleSent(vi,pi);
+  saveState();
+  refreshAll();
+}
+
+// ── Get model's video list ──
+// Returns array of { vi (research index), modelNum (1-based sequential) }
+function getModelVideos(pi) {
+  const result = [];
+  state.videos.forEach((v,vi) => {
+    if (isSent(vi,pi)) result.push({ vi, researchNum: vi+1 });
+  });
+  return result.map((item, idx) => ({ ...item, modelNum: idx+1 }));
+}
+
+// ── Navigation ──
+let curPage = 'landing';
+function showPage(id, btn) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  const pg = document.getElementById('page-'+id);
+  if (pg) pg.classList.add('active');
+  if (btn) btn.classList.add('active');
+  curPage = id;
+  if (id==='landing') renderLandingPage();
+  if (id==='main') { renderMainStats(); renderMainHead(); renderMainTable(); }
+  if (id.startsWith('person-')) renderPersonPage(parseInt(id.replace('person-','')));
+}
+
+function buildNav() {
+  document.getElementById('navPersonBtns').innerHTML = state.people.map((p,i) =>
+    `<button class="nav-btn" id="navbtn-person-${i}" onclick="showPage('person-${i}',this)">
+      <span class="nav-dot" style="background:${AC[i%AC.length]}"></span>${p}
+    </button>`
+  ).join('');
+}
+
+function buildPersonPages() {
+  document.getElementById('personPages').innerHTML = state.people.map((_,i) =>
+    `<div class="page" id="page-person-${i}"><div id="ppc-${i}"></div></div>`
+  ).join('');
+}
+
+// ── Main Dashboard ──
+let mainFilter = 'all';
+function setMainFilter(f,el) {
+  mainFilter=f;
+  document.querySelectorAll('#page-main .pill').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');
+  renderMainTable();
+}
+
+function renderMainStats() {
+  let total=state.videos.length*state.people.length, sent=0;
+  state.videos.forEach((_,vi)=>state.people.forEach((_,pi)=>{ if(isSent(vi,pi)) sent++; }));
+  document.getElementById('mainStats').innerHTML=`
+    <div class="stat-card c-blue"><div class="stat-label">Research Videos</div><div class="stat-value">${state.videos.length}</div></div>
+    <div class="stat-card c-sky"><div class="stat-label">Models</div><div class="stat-value">${state.people.length}</div></div>
+    <div class="stat-card c-green"><div class="stat-label">Sent ✓</div><div class="stat-value">${sent}</div></div>
+    <div class="stat-card c-red"><div class="stat-label">Pending ✗</div><div class="stat-value">${total-sent}</div></div>`;
+}
+
+function renderMainHead() {
+  let h = '<tr><th style="text-align:left;padding-left:22px;min-width:300px;">RESEARCH VIDEO</th>';
+  state.people.forEach((p,pi) => {
+    const c=AC[pi%AC.length], cnt=state.videos.filter((_,vi)=>isSent(vi,pi)).length;
+    h += `<th><div class="person-header">
+      <div class="person-avatar" style="background:${c}">${p[0]}</div>
+      <div style="font-size:11px;color:var(--text);font-weight:600;">${p}</div>
+      <div class="person-sent-count">${cnt}/${state.videos.length}</div>
+    </div></th>`;
+  });
+  h += '<th>SENT</th><th>PENDING</th></tr>';
+  document.getElementById('mainHead').innerHTML = h;
+}
+
+function renderMainTable() {
+  const q = document.getElementById('mainSearch').value.toLowerCase();
+  let h='', cnt=0;
+  state.videos.forEach((video,vi) => {
+    if (q && !video.toLowerCase().includes(q)) return;
+    const sc=state.people.filter((_,pi)=>isSent(vi,pi)).length, pc=state.people.length-sc;
+    if (mainFilter==='complete'&&sc<state.people.length) return;
+    if (mainFilter==='none'&&sc>0) return;
+    if (mainFilter==='partial'&&(sc===0||sc===state.people.length)) return;
+    cnt++;
+    const th=state.thumbnails[vi], hv=!!state.videoURLs[vi];
+    const thHTML = th
+      ? `<div class="thumb-wrap" onclick="${hv?`openVideoModal(${vi})`:`triggerInlineUpload(${vi})`}"><img src="${th}"><div class="thumb-overlay">${hv?'▶':'📤'}</div></div>`
+      : `<div class="thumb-wrap" onclick="triggerInlineUpload(${vi})"><span class="thumb-placeholder">🎬</span><div class="thumb-overlay">📤</div></div>`;
+    h += `<tr class="animate-in"><td>
+      <div style="display:flex;align-items:center;gap:10px;">
+        ${thHTML}
+        <input type="file" accept="video/*" id="inf-${vi}" style="display:none;" onchange="handleInlineUpload(this,${vi})">
+        <div style="min-width:0;flex:1;">
+          <div style="display:flex;gap:4px;margin-bottom:5px;">
+            <button class="action-btn del" onclick="deleteVideo(${vi})">✕</button>
+            <button class="action-btn ren" onclick="openRenameVideo(${vi})">✎</button>
+          </div>
+          <div class="video-name">${video}</div>
+          <div class="video-idx">Research #${vi+1}</div>
+        </div>
+      </div>
+    </td>`;
+    state.people.forEach((_,pi) => {
+      h += `<td><div class="toggle-wrap">
+        <label class="toggle">
+          <input type="checkbox" ${isSent(vi,pi)?'checked':''} onchange="toggleSent(${vi},${pi})">
+          <div class="toggle-track"></div><div class="toggle-thumb"></div>
+        </label>
+        <div class="status-text ${isSent(vi,pi)?'status-sent':'status-unsent'}">${isSent(vi,pi)?'sent':'—'}</div>
+      </div></td>`;
+    });
+    h += `<td><span class="row-badge badge-sent">✓ ${sc}</span></td>
+          <td><span class="row-badge badge-pending">✗ ${pc}</span></td></tr>`;
+  });
+  if (!cnt) h = `<tr><td colspan="${state.people.length+3}"><div class="empty-state"><div class="icon">📭</div><p>No videos found</p></div></td></tr>`;
+  document.getElementById('mainBody').innerHTML = h;
+}
+
+// ── Model Page (auto-populated from sent toggles) ──
+function renderPersonPage(pi) {
+  const p=state.people[pi], c=AC[pi%AC.length];
+  const modelVideos = getModelVideos(pi); // only sent videos
+  const totalResearch = state.videos.length;
+  const pct = totalResearch ? Math.round(modelVideos.length/totalResearch*100) : 0;
+
+  // Build table rows
+  let tableRows = '';
+  if (modelVideos.length === 0) {
+    tableRows = `<tr><td colspan="4"><div class="empty-state"><div class="icon">📭</div><p>No videos sent to ${p} yet — toggle videos on the Main Dashboard</p></div></td></tr>`;
+  } else {
+    modelVideos.forEach(({ vi, modelNum, researchNum }) => {
+      const th = state.thumbnails[vi];
+      const thumbHTML = th
+        ? `<div class="model-thumb"><img src="${th}" alt="thumb"></div>`
+        : `<div class="model-thumb"><span class="model-thumb-placeholder">🎬</span></div>`;
+      tableRows += `<tr class="animate-in">
+        <td>
+          <div style="display:flex;align-items:center;gap:14px;">
+            ${thumbHTML}
+            <div>
+              <div class="model-video-num">Fansly Video ${modelNum}</div>
+              <div class="model-video-label">${p}'s #${modelNum}</div>
+            </div>
+          </div>
+        </td>
+        <td>
+          <span class="model-research-ref" onclick="jumpToResearch(${vi})" title="View in Main Dashboard">
+            ↗ Research #${researchNum}
+          </span>
+        </td>
+        <td style="color:var(--muted);font-size:12px;">${state.videos[vi]}</td>
+        <td>
+          <span style="display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--green);">
+            <span style="width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;"></span> Sent
+          </span>
+        </td>
+      </tr>`;
+    });
+  }
+
+  document.getElementById(`ppc-${pi}`).innerHTML = `
+    <div style="margin-bottom:20px;">
+      <button class="btn btn-ghost" style="font-size:10px;padding:7px 14px;" onclick="showPage('landing',document.getElementById('navbtn-landing'))">← Home</button>
+    </div>
+    <div class="page-header">
+      <div style="display:flex;align-items:center;gap:16px;">
+        <div style="width:54px;height:54px;border-radius:50%;background:${c};display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:400;color:white;flex-shrink:0;">${p[0]}</div>
+        <div>
+          <div class="page-title">${p}</div>
+          <div class="page-sub">Model delivery tracker · ${modelVideos.length} of ${totalResearch} research videos received</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="stats-bar">
+      <div class="stat-card c-blue"><div class="stat-label">Research Videos</div><div class="stat-value">${totalResearch}</div></div>
+      <div class="stat-card c-green"><div class="stat-label">Received ✓</div><div class="stat-value">${modelVideos.length}</div></div>
+      <div class="stat-card c-red"><div class="stat-label">Not Sent ✗</div><div class="stat-value">${totalResearch-modelVideos.length}</div></div>
+      <div class="stat-card c-sky"><div class="stat-label">Progress</div><div class="stat-value">${pct}%</div></div>
+    </div>
+
+    <div style="background:white;border:1px solid var(--border);padding:16px 22px;margin-bottom:28px;display:flex;align-items:center;gap:20px;box-shadow:var(--shadow);">
+      <div style="flex:1;">
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.12em;margin-bottom:8px;font-weight:600;">Delivery Progress</div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+      </div>
+      <div style="font-family:'Cormorant Garamond',serif;font-size:34px;font-weight:400;color:${pct===100?'var(--green)':'var(--text)'};">${pct}%</div>
+    </div>
+
+    <div style="font-size:11px;color:var(--muted);margin-bottom:16px;letter-spacing:0.04em;line-height:1.6;">
+      Videos below are <strong style="color:var(--text)">auto-populated</strong> from the Main Dashboard toggles.
+      Each video has its own sequential number for ${p}, plus a <strong style="color:var(--accent2)">Research # reference</strong> linking back to the master list.
+      Click <strong style="color:var(--accent2)">↗ Research #</strong> to jump to that video in the Main Dashboard.
+    </div>
+
+    <div class="model-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="min-width:220px;">${p.toUpperCase()}'S VIDEOS</th>
+            <th style="min-width:150px;">RESEARCH REF</th>
+            <th style="min-width:180px;">ORIGINAL NAME</th>
+            <th style="min-width:100px;">STATUS</th>
+          </tr>
+        </thead>
+        <tbody>${tableRows}</tbody>
+      </table>
+    </div>`;
+}
+
+// Jump to research video in main dashboard and highlight it
+function jumpToResearch(vi) {
+  showPage('main', document.getElementById('navbtn-main'));
+  setTimeout(() => {
+    renderMainTable();
+    const rows = document.querySelectorAll('#mainBody tr');
+    // find the row for this vi by counting visible rows
+    // simpler: scroll to top and set search to video name
+    const input = document.getElementById('mainSearch');
+    input.value = state.videos[vi];
+    renderMainTable();
+    // clear after 2s
+    setTimeout(() => { input.value=''; renderMainTable(); }, 2500);
+  }, 100);
+}
+
+// ── Add video ──
+let pendingAdd = null;
+function openAddVideo() { resetAddForm(); document.getElementById('videoNameInput').value=''; openModal('addModal'); setTimeout(()=>document.getElementById('videoNameInput').focus(),120); }
+function handleAddFileSelect(input) { const f=input.files[0]; if(!f)return; generateThumbnail(f,(th,ou)=>{ pendingAdd={th,ou}; document.getElementById('addThumbPreview').src=th; document.getElementById('addPreview').style.display='block'; }); }
+function handleAddDrop(e) { e.preventDefault(); document.getElementById('addUploadZone').classList.remove('drag'); const f=e.dataTransfer.files[0]; if(f&&f.type.startsWith('video/'))handleAddFileSelect({files:[f]}); }
+function resetAddForm() { pendingAdd=null; const fi=document.getElementById('addVideoFile'); if(fi)fi.value=''; document.getElementById('addPreview').style.display='none'; }
+function saveVideo() {
+  const n = document.getElementById('videoNameInput').value.trim(); if(!n) return;
+  state.videos.push(n);
+  const vi = state.videos.length-1;
+  if (pendingAdd) { state.thumbnails[vi]=pendingAdd.th; state.videoURLs[vi]=pendingAdd.ou; sbSaveThumbnail(vi,pendingAdd.th); }
+  sbAddVideo(n); resetAddForm(); closeModal('addModal'); sortVideos(); rebuild(); refreshAll(); saveState();
+}
+
+// ── Inline upload ──
+function triggerInlineUpload(vi) { document.getElementById(`inf-${vi}`).click(); }
+function handleInlineUpload(input, vi) {
+  const f=input.files[0]; if(!f)return;
+  generateThumbnail(f,(th,ou)=>{ state.thumbnails[vi]=th; state.videoURLs[vi]=ou; sbSaveThumbnail(vi,th); renderMainTable(); saveState(); });
+}
+
+// ── Delete / rename ──
+function deleteVideo(vi) {
+  if (!confirm(`Delete "${state.videos[vi]}"?`)) return;
+  const name = state.videos[vi];
+  sbDeleteVideo(name);
+  state.videos.splice(vi,1);
+  const rm = o => { const n={}; Object.keys(o).forEach(k=>{ const i=parseInt(k); if(i<vi)n[i]=o[k]; else if(i>vi)n[i-1]=o[k]; }); return n; };
+  state.sent=rm(state.sent); state.thumbnails=rm(state.thumbnails); state.videoURLs=rm(state.videoURLs);
+  rebuild(); refreshAll(); saveState();
+}
+
+let renameVI = null;
+function openRenameVideo(vi) { renameVI=vi; document.getElementById('renameInput').value=state.videos[vi]; openModal('renameModal'); setTimeout(()=>{ const i=document.getElementById('renameInput'); i.focus(); i.select(); },100); }
+function saveRename() {
+  const n=document.getElementById('renameInput').value.trim(); if(!n||renameVI===null)return;
+  sbRenameVideo(state.videos[renameVI],n); state.videos[renameVI]=n; renameVI=null;
+  closeModal('renameModal'); sortVideos(); rebuild(); refreshAll(); saveState();
+}
+
+// ── Video preview ──
+let previewVI = null;
+function openVideoModal(vi) { if(!state.videoURLs[vi])return; previewVI=vi; document.getElementById('videoModalTitle').textContent=state.videos[vi]; document.getElementById('videoModalSub').textContent=`Research #${vi+1}`; document.getElementById('videoModalPlayer').src=state.videoURLs[vi]; openModal('videoModal'); }
+function closeVideoModal() { const p=document.getElementById('videoModalPlayer'); p.pause(); p.src=''; closeModal('videoModal'); }
+function removeVideoFile() { if(previewVI===null)return; delete state.thumbnails[previewVI]; delete state.videoURLs[previewVI]; sbSaveThumbnail(previewVI,null); closeVideoModal(); refreshAll(); saveState(); }
+
+// ── People/Models ──
+function openManagePeople() { renderPeopleTags(); openModal('peopleModal'); }
+function renderPeopleTags() {
+  document.getElementById('peopleTagsContainer').innerHTML = state.people.map((p,i) =>
+    `<span class="person-tag"><span style="color:${AC[i%AC.length]}">${p[0]}</span>${p}<button onclick="removePerson(${i})">×</button></span>`
+  ).join('');
+}
+function addPerson() {
+  const n=document.getElementById('personNameInput').value.trim(); if(!n||state.people.includes(n))return;
+  sbAddPerson(n); state.people.push(n); document.getElementById('personNameInput').value='';
+  renderPeopleTags(); rebuild(); refreshAll(); saveState();
+}
+function removePerson(pi) {
+  if(state.people.length<=1)return alert('Need at least one model.');
+  if(!confirm(`Remove "${state.people[pi]}"?`))return;
+  sbRemovePerson(state.people[pi]); state.people.splice(pi,1);
+  const ns={}; Object.keys(state.sent).forEach(vi=>{ ns[vi]={}; Object.keys(state.sent[vi]||{}).forEach(p=>{ const pI=parseInt(p); if(pI<pi)ns[vi][pI]=state.sent[vi][p]; else if(pI>pi)ns[vi][pI-1]=state.sent[vi][p]; }); });
+  state.sent=ns; renderPeopleTags(); rebuild(); refreshAll(); saveState();
+  showPage('main',document.getElementById('navbtn-main'));
+}
+
+// ── Thumbnail ──
+function generateThumbnail(file,cb) {
+  const v=document.createElement('video'); v.muted=true; v.playsInline=true; v.preload='metadata';
+  const ou=URL.createObjectURL(file); v.src=ou;
+  v.addEventListener('loadeddata',()=>{ v.currentTime=1; });
+  v.addEventListener('seeked',()=>{ const c=document.getElementById('hiddenCanvas'); c.width=200; c.height=112; c.getContext('2d').drawImage(v,0,0,200,112); cb(c.toDataURL('image/jpeg',0.85),ou); });
+  v.load();
+}
+
+// ── Landing ──
+function renderLandingPage() {
+  let total=state.videos.length*state.people.length, sent=0;
+  state.videos.forEach((_,vi)=>state.people.forEach((_,pi)=>{ if(isSent(vi,pi)) sent++; }));
+  const pending=total-sent, pct=total?Math.round(sent/total*100):0;
+
+  const peopleCards = state.people.map((p,pi) => {
+    const c=AC[pi%AC.length], mv=getModelVideos(pi);
+    const pp=state.videos.length?Math.round(mv.length/state.videos.length*100):0;
+    return `<div class="landing-card" onclick="showPage('person-${pi}',document.getElementById('navbtn-person-${pi}'))">
+      <div class="lc-avatar" style="background:${c}">${p[0]}</div>
+      <div class="lc-name">${p}</div>
+      <div class="lc-meta">${mv.length} of ${state.videos.length} videos sent</div>
+      <div class="lc-bar"><div class="lc-bar-fill" style="width:${pp}%"></div></div>
+      <div class="lc-pct">${pp}% complete</div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('landingContent').innerHTML = `
+    <div class="landing-hero">
+      <div class="landing-hero-eyebrow">Telegram Delivery Tracker</div>
+      <div class="landing-hero-title">Fansly <em>FYP Tracker</em></div>
+      <div class="landing-hero-sub">Manage researched videos and track delivery to each model. Toggle sent status on the Main Dashboard — model tabs update automatically.</div>
+      <div class="landing-hero-actions">
+        <button class="btn btn-primary" onclick="showPage('main',document.getElementById('navbtn-main'))">View Main Dashboard</button>
+        <button class="btn btn-ghost" onclick="openAddVideo()">+ Add Video</button>
+        <button class="btn btn-ghost" style="font-size:10px;color:#aaa;border-color:#ddd;" onclick="clearSavedState()">↺ Reset</button>
+      </div>
+    </div>
+
+    <div class="landing-stats-row">
+      <div class="lsr-item"><div class="lsr-val">${state.videos.length}</div><div class="lsr-label">Research Videos</div></div>
+      <div class="lsr-item"><div class="lsr-val">${state.people.length}</div><div class="lsr-label">Models</div></div>
+      <div class="lsr-item"><div class="lsr-val">${sent}</div><div class="lsr-label">Sent</div></div>
+      <div class="lsr-item"><div class="lsr-val">${pending}</div><div class="lsr-label">Pending</div></div>
+      <div class="lsr-item"><div class="lsr-val">${pct}%</div><div class="lsr-label">Progress</div></div>
+    </div>
+
+    <div style="margin-bottom:48px;">
+      <div class="landing-main-card" onclick="showPage('main',document.getElementById('navbtn-main'))">
+        <div class="landing-main-card-left">
+          <div class="eyebrow">Master List</div>
+          <div class="title">Main Dashboard</div>
+          <div class="desc">All ${state.videos.length} researched videos. Toggle each model's sent status — their individual tabs auto-populate with sequential numbering.</div>
+        </div>
+        <div class="landing-main-arrow">→</div>
+      </div>
+    </div>
+
+    <div class="landing-section-label">Model Dashboards</div>
+    <div class="landing-cards">${peopleCards}</div>`;
+}
+
+// ── Modal helpers ──
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(m=>{
+  m.addEventListener('click',e=>{ if(e.target===m){ if(m.id==='videoModal')closeVideoModal(); else m.classList.remove('open'); } });
+});
+
+// ── Rebuild & refresh ──
+function rebuild() { buildNav(); buildPersonPages(); }
+function refreshAll() {
+  renderMainStats(); renderMainHead(); renderMainTable();
+  if (curPage==='landing') renderLandingPage();
+  if (curPage.startsWith('person-')) renderPersonPage(parseInt(curPage.replace('person-','')));
+}
+
+// ── Persist ──
+function saveState() {
+  try {
+    localStorage.setItem('fanslyTrackerState', JSON.stringify({
+      people: state.people, videos: state.videos, sent: state.sent, thumbnails: state.thumbnails
+    }));
+  } catch(e) { console.warn('Save error:', e); }
+}
+function loadState() {
+  try {
+    const s = localStorage.getItem('fanslyTrackerState');
+    if (!s) return false;
+    const p = JSON.parse(s);
+    if (p.people) state.people=p.people;
+    if (p.videos) state.videos=p.videos;
+    if (p.sent) state.sent=p.sent;
+    if (p.thumbnails) state.thumbnails=p.thumbnails;
+    return true;
+  } catch(e) { return false; }
+}
+function clearSavedState() {
+  if (!confirm('Reset ALL data? This cannot be undone.')) return;
+  localStorage.removeItem('fanslyTrackerState'); location.reload();
+}
+
+// ── Loading ──
+function showLoading(msg) {
+  let el=document.getElementById('loadingOverlay');
+  if(!el){el=document.createElement('div');el.id='loadingOverlay';el.style.cssText='position:fixed;inset:0;background:rgba(250,250,248,0.92);z-index:9999;display:flex;align-items:center;justify-content:center;font-family:Jost,sans-serif;font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:#9a9287;';document.body.appendChild(el);}
+  el.textContent=msg||'Loading...';el.style.display='flex';
+}
+function hideLoading() { const el=document.getElementById('loadingOverlay'); if(el)el.style.display='none'; }
+
+// ── Init ──
+async function init() {
+  window._sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  supabase = window._sb;
+  showLoading('Loading your data...');
+  const loaded = await sbLoadAll();
+  if (!loaded) { const hasSaved = loadState(); }
+  sortVideos();
+  hideLoading();
+  rebuild();
+  renderLandingPage();
+  refreshAll();
+}
+
+init();
+</script>
+</body>
+</html>
