@@ -486,13 +486,14 @@ function toggleSent(vi,pi) {
 }
 
 // ── Get model's video list with fansly_num support ──
+// FIX: use extractNumber(state.videos[vi]) instead of vi+1 for researchNum
 function getModelVideos(pi) {
   const result = [];
   state.videos.forEach((v,vi) => {
     if (isSent(vi,pi)) {
       const key = `${vi}__${pi}`;
       const fanslyNum = state.fanslyNums?.[key] || null;
-      result.push({ vi, researchNum: vi+1, fanslyNum });
+      result.push({ vi, researchNum: extractNumber(state.videos[vi]), fanslyNum });
     }
   });
   result.sort((a,b) => {
@@ -594,7 +595,7 @@ function renderMainTable() {
             <button class="action-btn ren" onclick="openRenameVideo(${vi})">✎</button>
           </div>
           <div class="video-name">${video}</div>
-          <div class="video-idx">Research #${vi+1}</div>
+          <div class="video-idx">Research #${extractNumber(video)}</div>
         </div>
       </div>
     </td>`;
@@ -758,7 +759,7 @@ function saveRename() {
 
 // ── Video preview ──
 let previewVI = null;
-function openVideoModal(vi) { if(!state.videoURLs[vi])return; previewVI=vi; document.getElementById('videoModalTitle').textContent=state.videos[vi]; document.getElementById('videoModalSub').textContent=`Research #${vi+1}`; document.getElementById('videoModalPlayer').src=state.videoURLs[vi]; openModal('videoModal'); }
+function openVideoModal(vi) { if(!state.videoURLs[vi])return; previewVI=vi; document.getElementById('videoModalTitle').textContent=state.videos[vi]; document.getElementById('videoModalSub').textContent=`Research #${extractNumber(state.videos[vi])}`; document.getElementById('videoModalPlayer').src=state.videoURLs[vi]; openModal('videoModal'); }
 function closeVideoModal() { const p=document.getElementById('videoModalPlayer'); p.pause(); p.src=''; closeModal('videoModal'); }
 function removeVideoFile() { if(previewVI===null)return; delete state.thumbnails[previewVI]; delete state.videoURLs[previewVI]; sbSaveThumbnail(previewVI,null); closeVideoModal(); refreshAll(); saveState(); }
 
