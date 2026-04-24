@@ -346,7 +346,7 @@ const SUPABASE_KEY = 'sb_publishable_aPdXiHYsZo8429q8dKnF_Q_Afz_2gk4';
 const AC = ['#4fa3e8','#f07ab0','#27ae7a','#f5a623','#e05c7a','#3ab5e8','#9b59b6','#1abc9c'];
 
 let state = {
-  people: ['Lola','Josie','Emma','Akasha','Myla','Grace','Mia'],
+  people: ['Lola','Josie','Emma','Akasha','Myla','Grace','Mia','Mila'],
   videos: [],
   sent: {},
   thumbnails: {},
@@ -495,14 +495,12 @@ function getModelVideos(pi) {
       result.push({ vi, researchNum: vi+1, fanslyNum });
     }
   });
-  // Sort by fanslyNum if available
   result.sort((a,b) => {
     if (a.fanslyNum && b.fanslyNum) return a.fanslyNum - b.fanslyNum;
     if (a.fanslyNum) return -1;
     if (b.fanslyNum) return 1;
     return a.vi - b.vi;
   });
-  // Assign modelNum — use fanslyNum if available, otherwise next sequential after highest fanslyNum
   const maxFansly = Math.max(...result.filter(r=>r.fanslyNum).map(r=>r.fanslyNum), 0);
   let nextSeq = maxFansly + 1;
   return result.map(item => ({
@@ -616,14 +614,13 @@ function renderMainTable() {
   document.getElementById('mainBody').innerHTML = h;
 }
 
-// ── Model Page (auto-populated from sent toggles) ──
+// ── Model Page ──
 function renderPersonPage(pi) {
   const p=state.people[pi], c=AC[pi%AC.length];
-  const modelVideos = getModelVideos(pi); // only sent videos
+  const modelVideos = getModelVideos(pi);
   const totalResearch = state.videos.length;
   const pct = totalResearch ? Math.round(modelVideos.length/totalResearch*100) : 0;
 
-  // Build table rows
   let tableRows = '';
   if (modelVideos.length === 0) {
     tableRows = `<tr><td colspan="4"><div class="empty-state"><div class="icon">📭</div><p>No videos sent to ${p} yet — toggle videos on the Main Dashboard</p></div></td></tr>`;
@@ -708,18 +705,13 @@ function renderPersonPage(pi) {
     </div>`;
 }
 
-// Jump to research video in main dashboard and highlight it
 function jumpToResearch(vi) {
   showPage('main', document.getElementById('navbtn-main'));
   setTimeout(() => {
     renderMainTable();
-    const rows = document.querySelectorAll('#mainBody tr');
-    // find the row for this vi by counting visible rows
-    // simpler: scroll to top and set search to video name
     const input = document.getElementById('mainSearch');
     input.value = state.videos[vi];
     renderMainTable();
-    // clear after 2s
     setTimeout(() => { input.value=''; renderMainTable(); }, 2500);
   }, 100);
 }
