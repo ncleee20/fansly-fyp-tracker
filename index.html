@@ -465,14 +465,19 @@ function extractNumber(name) { const m = name.match(/\d+/); return m ? parseInt(
 function sortVideos() {
   const indexed = state.videos.map((v,i) => ({ name:v, origIdx:i }));
   indexed.sort((a,b) => { const na=extractNumber(a.name),nb=extractNumber(b.name); return na!==nb?na-nb:a.name.localeCompare(b.name); });
-  const nv=[],ns={},nt={},nu={};
+  const nv=[],ns={},nt={},nu={},nf={};
   indexed.forEach((item,newIdx) => {
     nv.push(item.name);
     if (state.sent[item.origIdx]) ns[newIdx] = state.sent[item.origIdx];
     if (state.thumbnails[item.origIdx]) nt[newIdx] = state.thumbnails[item.origIdx];
     if (state.videoURLs[item.origIdx]) nu[newIdx] = state.videoURLs[item.origIdx];
+    state.people.forEach((_,pi) => {
+      const oldKey = `${item.origIdx}__${pi}`;
+      const newKey = `${newIdx}__${pi}`;
+      if (state.fanslyNums[oldKey]) nf[newKey] = state.fanslyNums[oldKey];
+    });
   });
-  state.videos=nv; state.sent=ns; state.thumbnails=nt; state.videoURLs=nu;
+  state.videos=nv; state.sent=ns; state.thumbnails=nt; state.videoURLs=nu; state.fanslyNums=nf;
 }
 
 function isSent(vi,pi) { return !!(state.sent[vi]&&state.sent[vi][pi]); }
