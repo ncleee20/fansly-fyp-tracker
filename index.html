@@ -362,7 +362,7 @@ async function sbLoadAll() {
     const [{ data: people }, { data: videos }, { data: sent }] = await Promise.all([
       supabase.from('people').select('*').order('id'),
       supabase.from('videos').select('*').order('id'),
-      supabase.from('sent_status').select('*,fansly_num')
+      supabase.from('sent_status').select('*,fansly_num').limit(10000)
     ]);
     if (people) {
       state.people = people.map(p => p.name);
