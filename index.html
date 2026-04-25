@@ -488,7 +488,6 @@ function toggleSent(vi,pi) {
   if (!state.sent[vi]) state.sent[vi]={};
   state.sent[vi][pi] = !state.sent[vi][pi];
   sbToggleSent(vi,pi);
-  saveState();
   refreshAll();
 }
 
@@ -739,14 +738,14 @@ function saveVideo() {
   state.videos.push(n);
   const vi = state.videos.length-1;
   if (pendingAdd) { state.thumbnails[vi]=pendingAdd.th; state.videoURLs[vi]=pendingAdd.ou; sbSaveThumbnail(vi,pendingAdd.th); }
-  sbAddVideo(n); resetAddForm(); closeModal('addModal'); sortVideos(); rebuild(); refreshAll(); saveState();
+  sbAddVideo(n); resetAddForm(); closeModal('addModal'); sortVideos(); rebuild(); refreshAll();
 }
 
 // ── Inline upload ──
 function triggerInlineUpload(vi) { document.getElementById(`inf-${vi}`).click(); }
 function handleInlineUpload(input, vi) {
   const f=input.files[0]; if(!f)return;
-  generateThumbnail(f,(th,ou)=>{ state.thumbnails[vi]=th; state.videoURLs[vi]=ou; sbSaveThumbnail(vi,th); renderMainTable(); saveState(); });
+  generateThumbnail(f,(th,ou)=>{ state.thumbnails[vi]=th; state.videoURLs[vi]=ou; sbSaveThumbnail(vi,th); renderMainTable(); });
 }
 
 // ── Delete / rename ──
@@ -757,7 +756,7 @@ function deleteVideo(vi) {
   state.videos.splice(vi,1);
   const rm = o => { const n={}; Object.keys(o).forEach(k=>{ const i=parseInt(k); if(i<vi)n[i]=o[k]; else if(i>vi)n[i-1]=o[k]; }); return n; };
   state.sent=rm(state.sent); state.thumbnails=rm(state.thumbnails); state.videoURLs=rm(state.videoURLs);
-  rebuild(); refreshAll(); saveState();
+  rebuild(); refreshAll();
 }
 
 let renameVI = null;
@@ -765,14 +764,14 @@ function openRenameVideo(vi) { renameVI=vi; document.getElementById('renameInput
 function saveRename() {
   const n=document.getElementById('renameInput').value.trim(); if(!n||renameVI===null)return;
   sbRenameVideo(state.videos[renameVI],n); state.videos[renameVI]=n; renameVI=null;
-  closeModal('renameModal'); sortVideos(); rebuild(); refreshAll(); saveState();
+  closeModal('renameModal'); sortVideos(); rebuild(); refreshAll();
 }
 
 // ── Video preview ──
 let previewVI = null;
 function openVideoModal(vi) { if(!state.videoURLs[vi])return; previewVI=vi; document.getElementById('videoModalTitle').textContent=state.videos[vi]; document.getElementById('videoModalSub').textContent=`Research #${extractNumber(state.videos[vi])}`; document.getElementById('videoModalPlayer').src=state.videoURLs[vi]; openModal('videoModal'); }
 function closeVideoModal() { const p=document.getElementById('videoModalPlayer'); p.pause(); p.src=''; closeModal('videoModal'); }
-function removeVideoFile() { if(previewVI===null)return; delete state.thumbnails[previewVI]; delete state.videoURLs[previewVI]; sbSaveThumbnail(previewVI,null); closeVideoModal(); refreshAll(); saveState(); }
+function removeVideoFile() { if(previewVI===null)return; delete state.thumbnails[previewVI]; delete state.videoURLs[previewVI]; sbSaveThumbnail(previewVI,null); closeVideoModal(); refreshAll(); }
 
 // ── People/Models ──
 function openManagePeople() { renderPeopleTags(); openModal('peopleModal'); }
@@ -784,14 +783,14 @@ function renderPeopleTags() {
 function addPerson() {
   const n=document.getElementById('personNameInput').value.trim(); if(!n||state.people.includes(n))return;
   sbAddPerson(n); state.people.push(n); document.getElementById('personNameInput').value='';
-  renderPeopleTags(); rebuild(); refreshAll(); saveState();
+  renderPeopleTags(); rebuild(); refreshAll();
 }
 function removePerson(pi) {
   if(state.people.length<=1)return alert('Need at least one model.');
   if(!confirm(`Remove "${state.people[pi]}"?`))return;
   sbRemovePerson(state.people[pi]); state.people.splice(pi,1);
   const ns={}; Object.keys(state.sent).forEach(vi=>{ ns[vi]={}; Object.keys(state.sent[vi]||{}).forEach(p=>{ const pI=parseInt(p); if(pI<pi)ns[vi][pI]=state.sent[vi][p]; else if(pI>pi)ns[vi][pI-1]=state.sent[vi][p]; }); });
-  state.sent=ns; renderPeopleTags(); rebuild(); refreshAll(); saveState();
+  state.sent=ns; renderPeopleTags(); rebuild(); refreshAll();
   showPage('main',document.getElementById('navbtn-main'));
 }
 
@@ -911,7 +910,7 @@ async function init() {
   supabase = window._sb;
   showLoading('Loading your data...');
   const loaded = await sbLoadAll();
-  if (!loaded) { const hasSaved = loadState(); sortVideos(); }
+  if (!loaded) { sortVideos(); }
   hideLoading();
   rebuild();
   renderLandingPage();
