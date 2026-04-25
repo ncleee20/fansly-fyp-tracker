@@ -387,7 +387,8 @@ async function sbLoadAll() {
         if (vi>=0 && pi>=0) {
           if (!state.sent[vi]) state.sent[vi] = {};
           state.sent[vi][pi] = s.is_sent;
-          if (s.fansly_num) state.fanslyNums[`${vi}__${pi}`] = s.fansly_num;
+          // Store by name so it survives sortVideos() remapping
+          if (s.fansly_num) state.fanslyNums[`${vName}__${pName}`] = s.fansly_num;
         }
       });
     }
@@ -465,19 +466,15 @@ function extractNumber(name) { const m = name.match(/\d+/); return m ? parseInt(
 function sortVideos() {
   const indexed = state.videos.map((v,i) => ({ name:v, origIdx:i }));
   indexed.sort((a,b) => { const na=extractNumber(a.name),nb=extractNumber(b.name); return na!==nb?na-nb:a.name.localeCompare(b.name); });
-  const nv=[],ns={},nt={},nu={},nf={};
+  const nv=[],ns={},nt={},nu={};
   indexed.forEach((item,newIdx) => {
     nv.push(item.name);
     if (state.sent[item.origIdx]) ns[newIdx] = state.sent[item.origIdx];
     if (state.thumbnails[item.origIdx]) nt[newIdx] = state.thumbnails[item.origIdx];
     if (state.videoURLs[item.origIdx]) nu[newIdx] = state.videoURLs[item.origIdx];
-    state.people.forEach((_,pi) => {
-      const oldKey = `${item.origIdx}__${pi}`;
-      const newKey = `${newIdx}__${pi}`;
-      if (state.fanslyNums[oldKey]) nf[newKey] = state.fanslyNums[oldKey];
-    });
   });
-  state.videos=nv; state.sent=ns; state.thumbnails=nt; state.videoURLs=nu; state.fanslyNums=nf;
+  // fanslyNums uses name-based keys so no remapping needed
+  state.videos=nv; state.sent=ns; state.thumbnails=nt; state.videoURLs=nu;
 }
 
 function isSent(vi,pi) { return !!(state.sent[vi]&&state.sent[vi][pi]); }
@@ -497,7 +494,8 @@ function getModelVideos(pi) {
   state.videos.forEach((v,vi) => {
     if (isSent(vi,pi)) {
       const key = `${vi}__${pi}`;
-      const fanslyNum = state.fanslyNums?.[key] || null;
+      const key2 = `${state.videos[vi]}__${state.people[pi]}`;
+      const fanslyNum = state.fanslyNums?.[key2] || null;
       result.push({ vi, researchNum: extractNumber(state.videos[vi]), fanslyNum });
     }
   });
