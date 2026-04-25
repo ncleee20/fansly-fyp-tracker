@@ -359,11 +359,13 @@ let state = {
 // ── Supabase helpers ──
 async function sbLoadAll() {
   try {
-    const [{ data: people }, { data: videos }, { data: sent }] = await Promise.all([
+    const [{ data: people }, { data: videos }, { data: sent1 }, { data: sent2 }] = await Promise.all([
       supabase.from('people').select('*').order('id'),
       supabase.from('videos').select('*').order('id'),
-      supabase.from('sent_status').select('*,fansly_num').limit(10000)
+      supabase.from('sent_status').select('*,fansly_num').order('id').range(0, 999),
+      supabase.from('sent_status').select('*,fansly_num').order('id').range(1000, 1999)
     ]);
+    const sent = [...(sent1 || []), ...(sent2 || [])];
     if (people) {
       state.people = people.map(p => p.name);
       state._peopleIds = people.reduce((a,p) => { a[p.name]=p.id; return a; }, {});
