@@ -383,7 +383,7 @@ async function sbLoadAll() {
         const vName = videos.find(v=>v.id===s.video_id)?.name;
         const pName = people.find(p=>p.id===s.person_id)?.name;
         const vi = state.videos.indexOf(vName);
-        const pi = state.people.indexOf(pName);
+        const pi = people.findIndex(p => p.name === pName);
         if (vi>=0 && pi>=0) {
           if (!state.sent[vi]) state.sent[vi] = {};
           state.sent[vi][pi] = s.is_sent;
