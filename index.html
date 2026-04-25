@@ -490,27 +490,30 @@ function toggleSent(vi,pi) {
 // ── Get model's video list with fansly_num support ──
 // FIX: use extractNumber(state.videos[vi]) instead of vi+1 for researchNum
 function getModelVideos(pi) {
+  const pName = state.people[pi];
   const result = [];
   state.videos.forEach((v,vi) => {
     if (isSent(vi,pi)) {
-      const key = `${vi}__${pi}`;
-      const key2 = `${state.videos[vi]}__${state.people[pi]}`;
-      const fanslyNum = state.fanslyNums?.[key2] || null;
-      result.push({ vi, researchNum: extractNumber(state.videos[vi]), fanslyNum });
+      const fanslyNum = state.fanslyNums[`${v}__${pName}`] || null;
+      result.push({ vi, researchNum: extractNumber(v), fanslyNum });
     }
   });
+  // Sort by fanslyNum first, then by video index for unnumbered ones
   result.sort((a,b) => {
     if (a.fanslyNum && b.fanslyNum) return a.fanslyNum - b.fanslyNum;
-    if (a.fanslyNum) return -1;
-    if (b.fanslyNum) return 1;
+    if (a.fanslyNum && !b.fanslyNum) return -1;
+    if (!a.fanslyNum && b.fanslyNum) return 1;
     return a.vi - b.vi;
   });
-  const maxFansly = Math.max(...result.filter(r=>r.fanslyNum).map(r=>r.fanslyNum), 0);
-  let nextSeq = maxFansly + 1;
-  return result.map(item => ({
-    ...item,
-    modelNum: item.fanslyNum || nextSeq++
-  }));
+  // Assign modelNum: use fanslyNum if available, else fill gaps sequentially
+  const usedNums = new Set(result.filter(r=>r.fanslyNum).map(r=>r.fanslyNum));
+  let nextSeq = 1;
+  return result.map(item => {
+    if (item.fanslyNum) return { ...item, modelNum: item.fanslyNum };
+    while (usedNums.has(nextSeq)) nextSeq++;
+    usedNums.add(nextSeq);
+    return { ...item, modelNum: nextSeq++ };
+  });
 }
 
 // ── Navigation ──
