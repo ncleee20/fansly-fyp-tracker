@@ -906,8 +906,7 @@ async function init() {
   supabase = window._sb;
   showLoading('Loading your data...');
   const loaded = await sbLoadAll();
-  if (!loaded) { const hasSaved = loadState(); }
-  sortVideos();
+  if (!loaded) { const hasSaved = loadState(); sortVideos(); }
   hideLoading();
   rebuild();
   renderLandingPage();
