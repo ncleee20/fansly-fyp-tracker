@@ -379,21 +379,26 @@ async function sbLoadAll() {
     if (sent) {
       state.sent = {};
       state.fanslyNums = {};
-      // Build lookup maps for fast index finding
-      const videoIndexMap = {};
-      state.videos.forEach((v,i) => videoIndexMap[v] = i);
-      const peopleIndexMap = {};
-      state.people.forEach((p,i) => peopleIndexMap[p] = i);
+      // Build id->index maps for fast lookup
+      const videoIdToIdx = {};
+      videos.forEach((v,i) => videoIdToIdx[v.id] = i);
+      const personIdToIdx = {};
+      people.forEach((p,i) => personIdToIdx[p.id] = i);
+      const personIdToName = {};
+      people.forEach(p => personIdToName[p.id] = p.name);
+      const videoIdToName = {};
+      videos.forEach(v => videoIdToName[v.id] = v.name);
       sent.forEach(s => {
-        const vName = videos.find(v=>v.id===s.video_id)?.name;
-        const pName = people.find(p=>p.id===s.person_id)?.name;
-        const vi = videoIndexMap[vName] ?? -1;
-        const pi = peopleIndexMap[pName] ?? -1;
+        const vi = videoIdToIdx[s.video_id] ?? -1;
+        const pi = personIdToIdx[s.person_id] ?? -1;
         if (vi>=0 && pi>=0) {
           if (!state.sent[vi]) state.sent[vi] = {};
           state.sent[vi][pi] = s.is_sent;
-          // Store by name so it survives sortVideos() remapping
-          if (s.fansly_num) state.fanslyNums[`${vName}__${pName}`] = s.fansly_num;
+          if (s.fansly_num) {
+            const vName = videoIdToName[s.video_id];
+            const pName = personIdToName[s.person_id];
+            state.fanslyNums[`${vName}__${pName}`] = s.fansly_num;
+          }
         }
       });
     }
