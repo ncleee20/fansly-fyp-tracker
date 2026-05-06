@@ -104,6 +104,9 @@ tbody tr:hover{background:#faf8f5;}
 td{padding:13px 16px;text-align:center;vertical-align:middle;}
 td:first-child{text-align:left;padding-left:22px;}
 
+/* COLORED COLUMN CELLS */
+.col-cell{transition:background 0.15s;}
+
 /* THUMBNAIL */
 .thumb-wrap{width:50px;height:50px;overflow:hidden;flex-shrink:0;background:#f5f3f0;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;transition:all 0.2s;}
 .thumb-wrap:hover{border-color:var(--text);}
@@ -279,10 +282,8 @@ td:first-child{text-align:left;padding-left:22px;}
     </div>
   </nav>
 
-  <!-- LANDING -->
   <div class="page active" id="page-landing"><div id="landingContent"></div></div>
 
-  <!-- MAIN DASHBOARD -->
   <div class="page" id="page-main">
     <div class="page-header">
       <div>
@@ -456,6 +457,22 @@ const SUPABASE_URL = 'https://jhafbeipdgfxlwkosctc.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_aPdXiHYsZo8429q8dKnF_Q_Afz_2gk4';
 const AC = ['#4fa3e8','#f07ab0','#27ae7a','#f5a623','#e05c7a','#3ab5e8','#9b59b6','#1abc9c','#e67e22'];
 
+// Column background colors at 50% transparency (hex + 80 = ~50% opacity)
+function getColBg(pi) {
+  const colors = [
+    'rgba(79,163,232,0.12)',   // blue
+    'rgba(240,122,176,0.12)',  // pink
+    'rgba(39,174,122,0.12)',   // green
+    'rgba(245,166,35,0.12)',   // orange
+    'rgba(224,92,122,0.12)',   // red
+    'rgba(58,181,232,0.12)',   // sky
+    'rgba(155,89,182,0.12)',   // purple
+    'rgba(26,188,156,0.12)',   // teal
+    'rgba(230,126,34,0.12)',   // amber
+  ];
+  return colors[pi % colors.length];
+}
+
 let state = { people:[], videos:[], sent:{}, thumbnails:{}, videoURLs:{}, fanslyNums:{}, notes:{}, _peopleIds:{}, _videoIds:{} };
 
 async function sbLoadAll() {
@@ -546,12 +563,16 @@ function renderMainStats() {
     <div class="stat-card c-green"><div class="stat-label">Sent ✓</div><div class="stat-value">${sent}</div></div>
     <div class="stat-card c-red"><div class="stat-label">Pending ✗</div><div class="stat-value">${total-sent}</div></div>`;
 }
+
 function renderMainHead() {
   let h='<tr><th style="text-align:left;padding-left:22px;min-width:300px;">RESEARCH VIDEO</th>';
-  state.people.forEach((p,pi)=>{ const c=AC[pi%AC.length],cnt=state.videos.filter((_,vi)=>isSent(vi,pi)).length; h+=`<th><div class="person-header"><div class="person-avatar" style="background:${c}">${p[0]}</div><div style="font-size:11px;color:var(--text);font-weight:600;">${p}</div><div class="person-sent-count">${cnt}/${state.videos.length}</div></div></th>`; });
+  state.people.forEach((p,pi)=>{ const c=AC[pi%AC.length],cnt=state.videos.filter((_,vi)=>isSent(vi,pi)).length;
+    h+=`<th style="background:${getColBg(pi)};"><div class="person-header"><div class="person-avatar" style="background:${c}">${p[0]}</div><div style="font-size:11px;color:var(--text);font-weight:600;">${p}</div><div class="person-sent-count">${cnt}/${state.videos.length}</div></div></th>`;
+  });
   h+='<th>SENT</th><th>PENDING</th></tr>';
   document.getElementById('mainHead').innerHTML=h;
 }
+
 function renderMainTable() {
   const q=document.getElementById('mainSearch').value.toLowerCase(); let h='',cnt=0;
   state.videos.forEach((video,vi)=>{
@@ -577,7 +598,10 @@ function renderMainTable() {
         <div class="video-idx">Research #${extractNumber(video)}</div>
         ${hasNote?`<div class="note-preview">📝 ${note}</div>`:''}
       </div></div></td>`;
-    state.people.forEach((_,pi)=>{ h+=`<td><div class="toggle-wrap"><label class="toggle" onclick="event.preventDefault();guardedToggle(${vi},${pi})"><input type="checkbox" ${isSent(vi,pi)?'checked':''} readonly><div class="toggle-track"></div><div class="toggle-thumb"></div></label><div class="status-text ${isSent(vi,pi)?'status-sent':'status-unsent'}">${isSent(vi,pi)?'sent':'—'}</div></div></td>`; });
+    state.people.forEach((_,pi)=>{
+      const bg = getColBg(pi);
+      h+=`<td class="col-cell" style="background:${bg};"><div class="toggle-wrap"><label class="toggle" onclick="event.preventDefault();guardedToggle(${vi},${pi})"><input type="checkbox" ${isSent(vi,pi)?'checked':''} readonly><div class="toggle-track"></div><div class="toggle-thumb"></div></label><div class="status-text ${isSent(vi,pi)?'status-sent':'status-unsent'}">${isSent(vi,pi)?'sent':'—'}</div></div></td>`;
+    });
     h+=`<td><span class="row-badge badge-sent">✓ ${sc}</span></td><td><span class="row-badge badge-pending">✗ ${pc}</span></td></tr>`;
   });
   if(!cnt)h=`<tr><td colspan="${state.people.length+3}"><div class="empty-state"><div class="icon">📭</div><p>No videos found</p></div></td></tr>`;
@@ -592,8 +616,8 @@ function saveNote() { if(noteVI===null)return; const note=document.getElementByI
 function renderPersonPage(pi) {
   const p=state.people[pi],c=AC[pi%AC.length],modelVideos=getModelVideos(pi),totalResearch=state.videos.length,pct=totalResearch?Math.round(modelVideos.length/totalResearch*100):0;
   let tableRows='';
-  if(!modelVideos.length) { tableRows=`<tr><td colspan="4"><div class="empty-state"><div class="icon">📭</div><p>No videos sent to ${p} yet</p></div></td></tr>`; }
-  else { modelVideos.forEach(({vi,modelNum,researchNum})=>{ const th=state.thumbnails[vi]; tableRows+=`<tr class="animate-in"><td><div style="display:flex;align-items:center;gap:14px;">${th?`<div class="model-thumb"><img src="${th}"></div>`:`<div class="model-thumb"><span class="model-thumb-placeholder">🎬</span></div>`}<div><div class="model-video-num">Fansly Video ${modelNum}</div><div class="model-video-label">${p}'s #${modelNum}</div></div></div></td><td><span class="model-research-ref" onclick="jumpToResearch(${vi})">↗ Research #${researchNum}</span></td><td style="color:var(--muted);font-size:12px;">${state.videos[vi]}</td><td><span style="display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--green);"><span style="width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;"></span>Sent</span></td></tr>`; }); }
+  if(!modelVideos.length){tableRows=`<tr><td colspan="4"><div class="empty-state"><div class="icon">📭</div><p>No videos sent to ${p} yet</p></div></td></tr>`;}
+  else{modelVideos.forEach(({vi,modelNum,researchNum})=>{const th=state.thumbnails[vi];tableRows+=`<tr class="animate-in"><td><div style="display:flex;align-items:center;gap:14px;">${th?`<div class="model-thumb"><img src="${th}"></div>`:`<div class="model-thumb"><span class="model-thumb-placeholder">🎬</span></div>`}<div><div class="model-video-num">Fansly Video ${modelNum}</div><div class="model-video-label">${p}'s #${modelNum}</div></div></div></td><td><span class="model-research-ref" onclick="jumpToResearch(${vi})">↗ Research #${researchNum}</span></td><td style="color:var(--muted);font-size:12px;">${state.videos[vi]}</td><td><span style="display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--green);"><span style="width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;"></span>Sent</span></td></tr>`;});}
   document.getElementById(`ppc-${pi}`).innerHTML=`
     <div style="margin-bottom:20px;"><button class="btn btn-ghost" style="font-size:10px;padding:7px 14px;" onclick="showPage('landing',document.getElementById('navbtn-landing'))">← Home</button></div>
     <div class="page-header"><div style="display:flex;align-items:center;gap:16px;"><div style="width:54px;height:54px;border-radius:50%;background:${c};display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:400;color:white;flex-shrink:0;">${p[0]}</div><div><div class="page-title">${p}</div><div class="page-sub">Model delivery tracker · ${modelVideos.length} of ${totalResearch} research videos received</div></div></div></div>
@@ -603,7 +627,7 @@ function renderPersonPage(pi) {
     <div class="model-table-wrap"><table><thead><tr><th style="min-width:220px;">${p.toUpperCase()}'S VIDEOS</th><th style="min-width:150px;">RESEARCH REF</th><th style="min-width:180px;">ORIGINAL NAME</th><th style="min-width:100px;">STATUS</th></tr></thead><tbody>${tableRows}</tbody></table></div>`;
 }
 
-function jumpToResearch(vi) { showPage('main',document.getElementById('navbtn-main')); setTimeout(()=>{ const i=document.getElementById('mainSearch'); i.value=state.videos[vi]; renderMainTable(); setTimeout(()=>{i.value='';renderMainTable();},2500); },100); }
+function jumpToResearch(vi){showPage('main',document.getElementById('navbtn-main'));setTimeout(()=>{const i=document.getElementById('mainSearch');i.value=state.videos[vi];renderMainTable();setTimeout(()=>{i.value='';renderMainTable();},2500);},100);}
 
 let pendingAdd=null;
 function openAddVideo(){resetAddForm();document.getElementById('videoNameInput').value='';openModal('addModal');setTimeout(()=>document.getElementById('videoNameInput').focus(),120);}
